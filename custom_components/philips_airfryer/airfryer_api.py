@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 import requests
-from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,19 +31,9 @@ class AirfryerAPI:
         self.command_url = command_url
         self.token = ""
 
-    def _create_session(self) -> requests.Session:
-        """Create a fresh session for each request to avoid connection issues."""
-        session = requests.Session()
-        # Configure adapter to prevent connection pooling issues
-        adapter = HTTPAdapter(
-            pool_connections=1,
-            pool_maxsize=1,
-            max_retries=0,  # No automatic retries
-            pool_block=False
-        )
-        session.mount('https://', adapter)
-        session.mount('http://', adapter)
-        return session
+        # Use a single persistent session like the original pyscript
+        # The airfryer's embedded server works best with a reused session
+        self.session = requests.Session()
 
     def _decode(self, txt: str) -> bytes:
         """Decode base64 string."""
@@ -70,56 +59,41 @@ class AirfryerAPI:
                 "User-Agent": "cml",
                 "Content-Type": "application/json",
                 "Authorization": f"PHILIPS-Condor {self.token}",
-                "Connection": "close",
             }
         else:
             headers = {
                 "User-Agent": "cml",
                 "Content-Type": "application/json",
-                "Connection": "close",
             }
 
-        # Create a fresh session for each request
-        session = self._create_session()
-        response = None
-
         try:
-            response = session.get(
+            response = self.session.get(
                 f"https://{self.ip_address}{self.command_url}",
                 headers=headers,
                 verify=False,
                 timeout=10,
             )
-
-            # Process response immediately while connection is still open
-            if response.status_code == 401:
-                # Need to authenticate
-                challenge = response.headers.get("WWW-Authenticate", "")
-                challenge = challenge.replace("PHILIPS-Condor ", "")
-                self.token = self._get_auth(challenge)
-                _LOGGER.info("New token generated")
-                # Retry with new token
-                return self.get_status()
-            elif response.status_code != 200:
-                _LOGGER.error("Status request failed with code: %s", response.status_code)
-                return None
-            else:
-                # Read and parse JSON while connection is open
-                try:
-                    data = response.json()
-                    return data
-                except json.JSONDecodeError:
-                    _LOGGER.error("Failed to decode JSON response")
-                    return None
-
         except requests.exceptions.RequestException as e:
             _LOGGER.error("Failed to get status: %s", e)
             return None
-        finally:
-            # Clean up response and session
-            if response is not None:
-                response.close()
-            session.close()
+
+        if response.status_code == 401:
+            # Need to authenticate
+            challenge = response.headers.get("WWW-Authenticate", "")
+            challenge = challenge.replace("PHILIPS-Condor ", "")
+            self.token = self._get_auth(challenge)
+            _LOGGER.info("New token generated")
+            # Retry with new token
+            return self.get_status()
+        elif response.status_code != 200:
+            _LOGGER.error("Status request failed with code: %s", response.status_code)
+            return None
+        else:
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                _LOGGER.error("Failed to decode JSON response")
+                return None
 
     def send_command(self, command: dict[str, Any]) -> dict[str, Any] | None:
         """Send a command to the airfryer."""
@@ -127,43 +101,29 @@ class AirfryerAPI:
             "User-Agent": "cml",
             "Content-Type": "application/json",
             "Authorization": f"PHILIPS-Condor {self.token}",
-            "Connection": "close",
         }
 
-        # Create a fresh session for each request
-        session = self._create_session()
-        response = None
-
         try:
-            response = session.put(
+            response = self.session.put(
                 f"https://{self.ip_address}{self.command_url}",
                 headers=headers,
                 data=json.dumps(command),
                 verify=False,
                 timeout=10,
             )
-
-            # Process response immediately while connection is still open
-            if response.status_code != 200:
-                _LOGGER.error("Command failed with code: %s", response.status_code)
-                return None
-            else:
-                # Read and parse JSON while connection is open
-                try:
-                    data = response.json()
-                    return data
-                except json.JSONDecodeError:
-                    _LOGGER.error("Failed to decode JSON response")
-                    return None
-
         except requests.exceptions.RequestException as e:
             _LOGGER.error("Failed to send command: %s", e)
             return None
-        finally:
-            # Clean up response and session
-            if response is not None:
-                response.close()
-            session.close()
+
+        if response.status_code != 200:
+            _LOGGER.error("Command failed with code: %s", response.status_code)
+            return None
+        else:
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                _LOGGER.error("Failed to decode JSON response")
+                return None
 
     def test_connection(self) -> bool:
         """Test the connection to the airfryer."""
