@@ -30,16 +30,18 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
+from .discovery import discover_airfryers, detect_model_config
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_IP_ADDRESS): str,
-        vol.Required(CONF_CLIENT_ID): str,
-        vol.Required(CONF_CLIENT_SECRET): str,
-    }
-)
+CONF_MODEL = "model"
+
+MODEL_OPTIONS = [
+    "HD9880/90",
+    "HD9875/90",
+    "HD9255",
+    "Other (untested)",
+]
 
 
 class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -47,20 +49,118 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self._discovered_devices: list[dict[str, Any]] = []
+        self._model_config: dict[str, Any] = {}
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step - try UPnP discovery."""
+        if user_input is not None:
+            # User chose to skip discovery or no devices found
+            return await self.async_step_manual()
+
+        # Try UPnP discovery
+        self._discovered_devices = await self.hass.async_add_executor_job(
+            discover_airfryers
+        )
+
+        if self._discovered_devices:
+            return await self.async_step_discovery()
+
+        # No devices found, go to manual setup
+        return await self.async_step_manual()
+
+    async def async_step_discovery(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle device selection from discovered devices."""
+        if user_input is not None:
+            selected_ip = user_input["device"]
+
+            # Find the selected device
+            selected_device = next(
+                (d for d in self._discovered_devices if d["ip_address"] == selected_ip),
+                None,
+            )
+
+            if selected_device:
+                self._model_config = selected_device["config"]
+                return await self.async_step_credentials(
+                    suggested_ip=selected_ip,
+                    suggested_model=selected_device["suggested_model"],
+                )
+
+        # Build device list for selection
+        device_options = {
+            device["ip_address"]: f"{device.get('friendly_name', 'Unknown')} ({device['ip_address']}) - {device.get('model_number', 'Unknown')}"
+            for device in self._discovered_devices
+        }
+        device_options["manual"] = "Manual setup (enter IP manually)"
+
+        return self.async_show_form(
+            step_id="discovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("device"): vol.In(device_options),
+                }
+            ),
+            description_placeholders={
+                "count": str(len(self._discovered_devices)),
+            },
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle manual IP and model selection."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate the input
             ip_address = user_input[CONF_IP_ADDRESS]
+            model = user_input[CONF_MODEL]
+
+            # Set model configuration
+            self._model_config = detect_model_config(
+                model if model != "Other (untested)" else None
+            )
+
+            return await self.async_step_credentials(
+                suggested_ip=ip_address, suggested_model=model
+            )
+
+        return self.async_show_form(
+            step_id="manual",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_IP_ADDRESS): str,
+                    vol.Required(CONF_MODEL, default="Other (untested)"): vol.In(
+                        MODEL_OPTIONS
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_credentials(
+        self,
+        user_input: dict[str, Any] | None = None,
+        suggested_ip: str | None = None,
+        suggested_model: str | None = None,
+    ) -> FlowResult:
+        """Handle credentials input."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            ip_address = suggested_ip or user_input[CONF_IP_ADDRESS]
             client_id = user_input[CONF_CLIENT_ID]
             client_secret = user_input[CONF_CLIENT_SECRET]
 
             # Test connection
-            api = AirfryerAPI(ip_address, client_id, client_secret)
+            command_url = self._model_config.get("command_url", DEFAULT_COMMAND_URL)
+            api = AirfryerAPI(ip_address, client_id, client_secret, command_url)
             try:
                 connection_ok = await self.hass.async_add_executor_job(
                     api.test_connection
@@ -76,14 +176,53 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(ip_address)
                 self._abort_if_unique_id_configured()
 
+                # Store basic config in data
+                data = {
+                    CONF_IP_ADDRESS: ip_address,
+                    CONF_CLIENT_ID: client_id,
+                    CONF_CLIENT_SECRET: client_secret,
+                }
+
+                # Store model-specific config in options
+                options = {
+                    CONF_COMMAND_URL: self._model_config.get(
+                        "command_url", DEFAULT_COMMAND_URL
+                    ),
+                    CONF_AIRSPEED: self._model_config.get("airspeed", DEFAULT_AIRSPEED),
+                    CONF_PROBE: self._model_config.get("probe", DEFAULT_PROBE),
+                    CONF_TIME_REMAINING: self._model_config.get(
+                        "time_remaining", DEFAULT_TIME_REMAINING
+                    ),
+                    CONF_TIME_TOTAL: self._model_config.get(
+                        "time_total", DEFAULT_TIME_TOTAL
+                    ),
+                }
+
+                model_name = suggested_model or self._model_config.get(
+                    "model", "Unknown"
+                )
+                title = f"Philips Airfryer {model_name} ({ip_address})"
+
                 return self.async_create_entry(
-                    title=f"Philips Airfryer ({ip_address})",
-                    data=user_input,
+                    title=title,
+                    data=data,
+                    options=options,
                 )
 
+        # Show credentials form
+        description = f"Enter credentials for {suggested_model or 'your airfryer'}"
+        if suggested_ip:
+            description += f" at {suggested_ip}"
+
         return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            step_id="credentials",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_CLIENT_ID): str,
+                    vol.Required(CONF_CLIENT_SECRET): str,
+                }
+            ),
+            description_placeholders={"description": description},
             errors=errors,
         )
 

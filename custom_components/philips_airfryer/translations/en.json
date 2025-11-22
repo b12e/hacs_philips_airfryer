@@ -3,9 +3,27 @@
     "step": {
       "user": {
         "title": "Set up Philips Airfryer",
-        "description": "Enter your Philips Airfryer connection details",
+        "description": "Searching for Philips Airfryers on your network..."
+      },
+      "discovery": {
+        "title": "Select Your Airfryer",
+        "description": "Found {count} Philips Airfryer(s) on your network. Select one or choose manual setup.",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "manual": {
+        "title": "Manual Setup",
+        "description": "Enter your Philips Airfryer details manually",
         "data": {
           "ip_address": "IP Address",
+          "model": "Model"
+        }
+      },
+      "credentials": {
+        "title": "Enter Credentials",
+        "description": "{description}",
+        "data": {
           "client_id": "Client ID",
           "client_secret": "Client Secret"
         }
