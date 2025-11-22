@@ -99,10 +99,6 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class PhilipsAirfryerOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for Philips Airfryer."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -110,6 +106,7 @@ class PhilipsAirfryerOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # Use self.config_entry which is automatically available in OptionsFlow
         options_schema = vol.Schema(
             {
                 vol.Optional(
