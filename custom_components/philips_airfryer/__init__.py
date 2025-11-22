@@ -15,6 +15,7 @@ from .const import (
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_COMMAND_URL,
+    CONF_MAC_ADDRESS,
     CONF_PROBE,
     CONF_REPLACE_TIMESTAMP,
     CONF_TIME_REMAINING,
@@ -78,6 +79,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
+    # Get MAC address if available
+    mac_address = entry.data.get(CONF_MAC_ADDRESS)
+
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -85,6 +89,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "api": api,
         "airspeed": airspeed,
         "probe": probe,
+        "mac_address": mac_address,
         "command_lock": asyncio.Lock(),
     }
 

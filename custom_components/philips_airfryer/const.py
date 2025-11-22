@@ -12,6 +12,7 @@ CONF_UPDATE_INTERVAL = "update_interval"
 CONF_REPLACE_TIMESTAMP = "replace_timestamp"
 CONF_TIME_REMAINING = "time_remaining"
 CONF_TIME_TOTAL = "time_total"
+CONF_MAC_ADDRESS = "mac_address"
 
 # Default values
 DEFAULT_COMMAND_URL = "/di/v1/products/1/airfryer"

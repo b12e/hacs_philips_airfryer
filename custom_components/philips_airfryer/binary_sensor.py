@@ -7,6 +7,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -23,13 +24,14 @@ async def async_setup_entry(
     """Set up the Philips Airfryer binary sensors."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     probe = hass.data[DOMAIN][config_entry.entry_id]["probe"]
+    mac_address = hass.data[DOMAIN][config_entry.entry_id].get("mac_address")
 
     entities = [
-        AirfryerDrawerOpenBinarySensor(coordinator, config_entry),
+        AirfryerDrawerOpenBinarySensor(coordinator, config_entry, mac_address),
     ]
 
     if probe:
-        entities.append(AirfryerProbeUnpluggedBinarySensor(coordinator, config_entry))
+        entities.append(AirfryerProbeUnpluggedBinarySensor(coordinator, config_entry, mac_address))
 
     async_add_entities(entities)
 
@@ -37,21 +39,28 @@ async def async_setup_entry(
 class AirfryerBinarySensorBase(CoordinatorEntity, BinarySensorEntity):
     """Base class for Philips Airfryer binary sensors."""
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self._config_entry = config_entry
+        self._mac_address = mac_address
         self._attr_has_entity_name = True
 
     @property
     def device_info(self):
         """Return device information."""
-        return {
+        device_info = {
             "identifiers": {(DOMAIN, self._config_entry.entry_id)},
             "name": "Philips Airfryer",
             "manufacturer": "Philips",
             "model": "Connected Airfryer",
         }
+
+        # Add MAC address as a connection if available
+        if self._mac_address:
+            device_info["connections"] = {(dr.CONNECTION_NETWORK_MAC, self._mac_address)}
+
+        return device_info
 
 
 class AirfryerDrawerOpenBinarySensor(AirfryerBinarySensorBase):
@@ -61,9 +70,9 @@ class AirfryerDrawerOpenBinarySensor(AirfryerBinarySensorBase):
     _attr_device_class = BinarySensorDeviceClass.OPENING
     _attr_icon = "mdi:tray"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DRAWER_OPEN}"
 
     @property
@@ -81,9 +90,9 @@ class AirfryerProbeUnpluggedBinarySensor(AirfryerBinarySensorBase):
     _attr_device_class = BinarySensorDeviceClass.PLUG
     _attr_icon = "mdi:connection"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_PROBE_UNPLUGGED}"
 
     @property

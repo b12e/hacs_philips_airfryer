@@ -3,7 +3,7 @@
   "name": "Philips Airfryer",
   "codeowners": ["@b12e"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["ssdp"],
   "documentation": "https://github.com/b12e/hacs_philips_airfryer",
   "integration_type": "device",
   "iot_class": "local_polling",
@@ -11,7 +11,7 @@
   "requirements": ["requests>=2.31.0"],
   "ssdp": [
     {
-      "manufacturer": "Philips"
+      "manufacturer": "Royal Philips Electronics"
     }
   ],
   "version": "1.0.0"

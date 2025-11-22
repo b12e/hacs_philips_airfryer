@@ -18,6 +18,7 @@ from .const import (
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_COMMAND_URL,
+    CONF_MAC_ADDRESS,
     CONF_PROBE,
     CONF_REPLACE_TIMESTAMP,
     CONF_TIME_REMAINING,
@@ -56,6 +57,7 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered_devices: list[dict[str, Any]] = []
         self._model_config: dict[str, Any] = {}
         self._ssdp_discovery_info: SsdpServiceInfo | None = None
+        self._mac_address: str | None = None
 
     async def async_step_ssdp(
         self, discovery_info: SsdpServiceInfo
@@ -72,10 +74,6 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if "://" in host:
             host = host.split("://")[1].split("/")[0].split(":")[0]
 
-        # Check if already configured
-        await self.async_set_unique_id(host)
-        self._abort_if_unique_id_configured()
-
         # Store discovery info
         self._ssdp_discovery_info = discovery_info
 
@@ -84,14 +82,42 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         model_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NUMBER, "")
         friendly_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_FRIENDLY_NAME, "Philips Airfryer")
         device_type = discovery_info.upnp.get(ssdp.ATTR_UPNP_DEVICE_TYPE, "")
+        serial_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_SERIAL, "")
+        udn = discovery_info.upnp.get(ssdp.ATTR_UPNP_UDN, "")
 
         # Check if it's a DiProduct (Philips connected appliance/airfryer)
         if "diproduct" not in device_type.lower():
             _LOGGER.debug("Not a DiProduct device, aborting SSDP discovery")
             return self.async_abort(reason="not_airfryer")
 
+        # Extract MAC address from UDN if available
+        mac_address = None
+        if udn:
+            # Try to extract MAC from UDN (format varies by device)
+            # Common format: uuid:00000000-0000-1000-8000-XXXXXXXXXXXX where X is MAC
+            if "8000-" in udn:
+                potential_mac = udn.split("8000-")[-1].replace("-", ":")
+                if len(potential_mac) >= 17:  # MAC address length with colons
+                    mac_address = potential_mac[:17].upper()
+            # Alternative: MAC might be in serial number
+            elif serial_number and len(serial_number) >= 12:
+                # Try to format as MAC if it looks like one
+                cleaned = serial_number.replace(":", "").replace("-", "").upper()
+                if len(cleaned) >= 12 and cleaned[:12].isalnum():
+                    mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
+
+        self._mac_address = mac_address
+
         # Detect model configuration
         self._model_config = detect_model_config(model_number)
+
+        # Set unique_id based on MAC address if available, otherwise IP
+        unique_id = mac_address if mac_address else host
+        _LOGGER.debug("Setting unique_id to %s (MAC: %s, IP: %s)", unique_id, mac_address, host)
+
+        # Check if already configured - update IP if it changed
+        await self.async_set_unique_id(unique_id)
+        self._abort_if_unique_id_configured(updates={CONF_IP_ADDRESS: host})
 
         # Show confirmation form
         self.context["title_placeholders"] = {
@@ -142,6 +168,7 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if selected_device:
                 # UPnP discovery provides the model, so use it directly
                 self._model_config = selected_device["config"]
+                self._mac_address = selected_device.get("mac_address")
                 return await self.async_step_credentials(
                     suggested_ip=selected_ip,
                     suggested_model=selected_device["suggested_model"],
@@ -226,8 +253,9 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
             if not errors:
-                # Create entry with unique ID based on IP
-                await self.async_set_unique_id(ip_address)
+                # Create entry with unique ID based on MAC address if available, otherwise IP
+                unique_id = self._mac_address if self._mac_address else ip_address
+                await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
                 # Store basic config in data
@@ -236,6 +264,10 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_CLIENT_ID: client_id,
                     CONF_CLIENT_SECRET: client_secret,
                 }
+
+                # Add MAC address if available
+                if self._mac_address:
+                    data[CONF_MAC_ADDRESS] = self._mac_address
 
                 # Store model-specific config in options
                 options = {

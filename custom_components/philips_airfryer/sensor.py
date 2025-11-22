@@ -9,6 +9,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -38,22 +39,23 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     airspeed = hass.data[DOMAIN][config_entry.entry_id]["airspeed"]
     probe = hass.data[DOMAIN][config_entry.entry_id]["probe"]
+    mac_address = hass.data[DOMAIN][config_entry.entry_id].get("mac_address")
 
     entities = [
-        AirfryerStatusSensor(coordinator, config_entry),
-        AirfryerTemperatureSensor(coordinator, config_entry),
-        AirfryerTimestampSensor(coordinator, config_entry),
-        AirfryerTotalTimeSensor(coordinator, config_entry),
-        AirfryerDisplayTimeSensor(coordinator, config_entry),
-        AirfryerProgressSensor(coordinator, config_entry),
-        AirfryerDialogSensor(coordinator, config_entry),
+        AirfryerStatusSensor(coordinator, config_entry, mac_address),
+        AirfryerTemperatureSensor(coordinator, config_entry, mac_address),
+        AirfryerTimestampSensor(coordinator, config_entry, mac_address),
+        AirfryerTotalTimeSensor(coordinator, config_entry, mac_address),
+        AirfryerDisplayTimeSensor(coordinator, config_entry, mac_address),
+        AirfryerProgressSensor(coordinator, config_entry, mac_address),
+        AirfryerDialogSensor(coordinator, config_entry, mac_address),
     ]
 
     if airspeed:
-        entities.append(AirfryerAirspeedSensor(coordinator, config_entry))
+        entities.append(AirfryerAirspeedSensor(coordinator, config_entry, mac_address))
 
     if probe:
-        entities.append(AirfryerTempProbeSensor(coordinator, config_entry))
+        entities.append(AirfryerTempProbeSensor(coordinator, config_entry, mac_address))
 
     async_add_entities(entities)
 
@@ -61,21 +63,28 @@ async def async_setup_entry(
 class AirfryerSensorBase(CoordinatorEntity, SensorEntity):
     """Base class for Philips Airfryer sensors."""
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._config_entry = config_entry
+        self._mac_address = mac_address
         self._attr_has_entity_name = True
 
     @property
     def device_info(self):
         """Return device information."""
-        return {
+        device_info = {
             "identifiers": {(DOMAIN, self._config_entry.entry_id)},
             "name": "Philips Airfryer",
             "manufacturer": "Philips",
             "model": "Connected Airfryer",
         }
+
+        # Add MAC address as a connection if available
+        if self._mac_address:
+            device_info["connections"] = {(dr.CONNECTION_NETWORK_MAC, self._mac_address)}
+
+        return device_info
 
 
 class AirfryerStatusSensor(AirfryerSensorBase):
@@ -84,9 +93,9 @@ class AirfryerStatusSensor(AirfryerSensorBase):
     _attr_name = "Status"
     _attr_icon = "mdi:state-machine"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_STATUS}"
 
     @property
@@ -105,9 +114,9 @@ class AirfryerTemperatureSensor(AirfryerSensorBase):
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_icon = "mdi:thermometer"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TEMP}"
 
     @property
@@ -125,9 +134,9 @@ class AirfryerTimestampSensor(AirfryerSensorBase):
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:clock-outline"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TIMESTAMP}"
 
     @property
@@ -163,9 +172,9 @@ class AirfryerTotalTimeSensor(AirfryerSensorBase):
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_icon = "mdi:timer"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TOTAL_TIME}"
 
     @property
@@ -192,9 +201,9 @@ class AirfryerDisplayTimeSensor(AirfryerSensorBase):
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
     _attr_icon = "mdi:timer-sand"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DISP_TIME}"
 
     @property
@@ -220,9 +229,9 @@ class AirfryerProgressSensor(AirfryerSensorBase):
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_icon = "mdi:progress-clock"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_PROGRESS}"
 
     @property
@@ -251,9 +260,9 @@ class AirfryerDialogSensor(AirfryerSensorBase):
     _attr_name = "Dialog"
     _attr_icon = "mdi:message-alert"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DIALOG}"
 
     @property
@@ -270,9 +279,9 @@ class AirfryerAirspeedSensor(AirfryerSensorBase):
     _attr_name = "Airspeed"
     _attr_icon = "mdi:fan"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_AIRSPEED}"
 
     @property
@@ -291,9 +300,9 @@ class AirfryerTempProbeSensor(AirfryerSensorBase):
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_icon = "mdi:thermometer-probe"
 
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+    def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
+        super().__init__(coordinator, config_entry, mac_address)
         self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TEMP_PROBE}"
 
     @property

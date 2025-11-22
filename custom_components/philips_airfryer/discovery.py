@@ -16,13 +16,14 @@ SSDP_DISCOVER = (
 )
 
 
-def discover_airfryers(timeout: int = 5) -> list[dict[str, Any]]:
+def discover_airfryers(timeout: int = 10) -> list[dict[str, Any]]:
     """Discover Philips Airfryers on the network via UPnP."""
     _LOGGER.debug("Starting UPnP discovery for Philips Airfryers")
     discovered = []
     seen_ips = set()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
     sock.settimeout(timeout)
 
     try:
@@ -113,10 +114,28 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
         model_number = _get_element_text(device, "modelNumber", ns)
         friendly_name = _get_element_text(device, "friendlyName", ns)
         manufacturer = _get_element_text(device, "manufacturer", ns)
+        serial_number = _get_element_text(device, "serialNumber", ns)
+        udn = _get_element_text(device, "UDN", ns)
+
+        # Extract MAC address from UDN if available (often in format uuid:MACADDRESS-...)
+        mac_address = None
+        if udn:
+            # Try to extract MAC from UDN (format varies by device)
+            # Common format: uuid:00000000-0000-1000-8000-XXXXXXXXXXXX where X is MAC
+            if "8000-" in udn:
+                potential_mac = udn.split("8000-")[-1].replace("-", ":")
+                if len(potential_mac) >= 17:  # MAC address length with colons
+                    mac_address = potential_mac[:17].upper()
+            # Alternative: MAC might be in serial number
+            elif serial_number and len(serial_number) >= 12:
+                # Try to format as MAC if it looks like one
+                cleaned = serial_number.replace(":", "").replace("-", "").upper()
+                if len(cleaned) >= 12 and cleaned[:12].isalnum():
+                    mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
 
         _LOGGER.info(
-            "Found device at %s - Type: %s, Model: %s, Number: %s, Name: %s, Manufacturer: %s",
-            ip_address, device_type, model_name, model_number, friendly_name, manufacturer
+            "Found device at %s - Type: %s, Model: %s, Number: %s, Name: %s, Manufacturer: %s, MAC: %s",
+            ip_address, device_type, model_name, model_number, friendly_name, manufacturer, mac_address
         )
 
         # Check if it's an airfryer
@@ -148,6 +167,9 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
             "friendly_name": friendly_name or "Philips Airfryer",
             "suggested_model": model_config["model"],
             "config": model_config,
+            "mac_address": mac_address,
+            "serial_number": serial_number,
+            "udn": udn,
         }
 
     except Exception as e:
