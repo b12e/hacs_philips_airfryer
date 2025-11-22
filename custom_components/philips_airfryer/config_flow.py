@@ -93,7 +93,7 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return PhilipsAirfryerOptionsFlowHandler(config_entry)
+        return PhilipsAirfryerOptionsFlowHandler()
 
 
 class PhilipsAirfryerOptionsFlowHandler(config_entries.OptionsFlow):
