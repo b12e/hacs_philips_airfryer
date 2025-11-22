@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Philips Airfryer",
+        "description": "Enter your Philips Airfryer connection details",
+        "data": {
+          "ip_address": "IP Address",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Airfryer. Please check the IP address and credentials.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This Airfryer is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Philips Airfryer Options",
+        "description": "Configure advanced settings for your Philips Airfryer",
+        "data": {
+          "command_url": "Command URL (set to /di/v1/products/1/venusaf for HD9880/90)",
+          "airspeed": "Enable Airspeed (HD9880/90 only)",
+          "probe": "Enable Temperature Probe (HD9880/90 & HD9875/90)",
+          "update_interval": "Update Interval (seconds)",
+          "replace_timestamp": "Replace device timestamp with server timestamp",
+          "time_remaining": "Time Remaining Field (set to cur_time for HD9255)",
+          "time_total": "Time Total Field (set to time for HD9255)"
+        }
+      }
+    }
+  }
+}

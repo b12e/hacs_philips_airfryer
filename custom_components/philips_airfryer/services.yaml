@@ -1,0 +1,157 @@
+turn_on:
+  name: Turn On
+  description: Turns the Airfryer on (into precook mode).
+
+turn_off:
+  name: Turn Off
+  description: Turns the Airfryer off (and stops it before if needed).
+
+start_cooking:
+  name: Start Cooking
+  description: Turns the Airfryer on, sets it up and starts cooking (if not disabled).
+  fields:
+    temp:
+      name: Temperature
+      description: Cooking temperature (range depends on your device)
+      example: 180
+      required: false
+      selector:
+        number:
+          min: 40
+          max: 200
+          mode: box
+          unit_of_measurement: "°C"
+    total_time:
+      name: Total Time
+      description: Cooking duration in seconds
+      example: 600
+      required: false
+      selector:
+        number:
+          min: 60
+          max: 86400
+          mode: box
+          unit_of_measurement: s
+    airspeed:
+      name: Airspeed
+      description: Airspeed 1 or 2 (only for devices with airspeed support)
+      example: 2
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 2
+          mode: box
+    start_cooking:
+      name: Start Cooking
+      description: If disabled, everything is set up, but not started
+      example: true
+      required: false
+      selector:
+        boolean:
+    force_update:
+      name: Force Sensor Update
+      description: Only set to False if you know what you are doing.
+      example: true
+      required: false
+      advanced: true
+      selector:
+        boolean:
+
+adjust_time:
+  name: Adjust Time
+  description: Adjust the time if Airfryer is in precook mode, paused or cooking. Subtraction is limited - remaining time must be at least a minute.
+  fields:
+    time:
+      name: Time
+      description: Seconds to add or subtract
+      example: 600
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 86400
+          mode: box
+          unit_of_measurement: s
+    method:
+      name: Method
+      description: Add or subtract
+      example: add
+      required: true
+      selector:
+        select:
+          options:
+            - add
+            - subtract
+    restart_cooking:
+      name: Restart Cooking
+      description: If disabled, the Airfryer will not restart cooking (if it was cooking before).
+      example: true
+      required: false
+      selector:
+        boolean:
+    force_update:
+      name: Force Sensor Update
+      description: Only set to False if you know what you are doing.
+      example: true
+      required: false
+      advanced: true
+      selector:
+        boolean:
+
+adjust_temp:
+  name: Adjust Temperature
+  description: Adjust the temperature if Airfryer is in precook mode, paused or cooking. Limited to the available range on your device
+  fields:
+    temp:
+      name: Temperature
+      description: Degrees to add or subtract
+      example: 10
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 160
+          mode: box
+          unit_of_measurement: "°C"
+    method:
+      name: Method
+      description: Add or subtract
+      example: add
+      required: true
+      selector:
+        select:
+          options:
+            - add
+            - subtract
+    restart_cooking:
+      name: Restart Cooking
+      description: If disabled, the Airfryer will not restart cooking (if it was cooking before).
+      example: true
+      required: false
+      selector:
+        boolean:
+    force_update:
+      name: Force Sensor Update
+      description: Only set to False if you know what you are doing.
+      example: true
+      required: false
+      advanced: true
+      selector:
+        boolean:
+
+toggle_airspeed:
+  name: Toggle Airspeed
+  description: Toggles the Airspeed between high and low (only for devices with airspeed support).
+
+pause:
+  name: Pause
+  description: Pauses the Airfryer.
+
+start_resume:
+  name: Start/Resume
+  description: Starts the Airfryer if everything is set up or resumes if paused.
+
+stop:
+  name: Stop
+  description: Stops the Airfryer and returns to main menu.

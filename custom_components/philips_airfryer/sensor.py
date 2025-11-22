@@ -1,0 +1,348 @@
+"""Sensor platform for Philips Airfryer."""
+from datetime import datetime
+import logging
+from typing import Any
+
+import dateutil.parser
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import (
+    CONF_REPLACE_TIMESTAMP,
+    DOMAIN,
+    SENSOR_DIALOG,
+    SENSOR_DISP_TIME,
+    SENSOR_DRAWER_OPEN,
+    SENSOR_PROGRESS,
+    SENSOR_STATUS,
+    SENSOR_TEMP,
+    SENSOR_TIMESTAMP,
+    SENSOR_TOTAL_TIME,
+    SENSOR_AIRSPEED,
+    SENSOR_TEMP_PROBE,
+    SENSOR_PROBE_UNPLUGGED,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the Philips Airfryer sensors."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
+    airspeed = hass.data[DOMAIN][config_entry.entry_id]["airspeed"]
+    probe = hass.data[DOMAIN][config_entry.entry_id]["probe"]
+
+    entities = [
+        AirfryerStatusSensor(coordinator, config_entry),
+        AirfryerTemperatureSensor(coordinator, config_entry),
+        AirfryerTimestampSensor(coordinator, config_entry),
+        AirfryerTotalTimeSensor(coordinator, config_entry),
+        AirfryerDisplayTimeSensor(coordinator, config_entry),
+        AirfryerProgressSensor(coordinator, config_entry),
+        AirfryerDrawerOpenSensor(coordinator, config_entry),
+        AirfryerDialogSensor(coordinator, config_entry),
+    ]
+
+    if airspeed:
+        entities.append(AirfryerAirspeedSensor(coordinator, config_entry))
+
+    if probe:
+        entities.extend([
+            AirfryerTempProbeSensor(coordinator, config_entry),
+            AirfryerProbeUnpluggedSensor(coordinator, config_entry),
+        ])
+
+    async_add_entities(entities)
+
+
+class AirfryerSensorBase(CoordinatorEntity, SensorEntity):
+    """Base class for Philips Airfryer sensors."""
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._config_entry = config_entry
+        self._attr_has_entity_name = True
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {(DOMAIN, self._config_entry.entry_id)},
+            "name": "Philips Airfryer",
+            "manufacturer": "Philips",
+            "model": "Connected Airfryer",
+        }
+
+
+class AirfryerStatusSensor(AirfryerSensorBase):
+    """Status sensor for Philips Airfryer."""
+
+    _attr_name = "Status"
+    _attr_icon = "mdi:state-machine"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_STATUS}"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return "offline"
+        return self.coordinator.data.get(SENSOR_STATUS, "unknown")
+
+
+class AirfryerTemperatureSensor(AirfryerSensorBase):
+    """Temperature sensor for Philips Airfryer."""
+
+    _attr_name = "Temperature"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_icon = "mdi:thermometer"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TEMP}"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return 0
+        return self.coordinator.data.get(SENSOR_TEMP, 0)
+
+
+class AirfryerTimestampSensor(AirfryerSensorBase):
+    """Timestamp sensor for Philips Airfryer."""
+
+    _attr_name = "Timestamp"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-outline"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TIMESTAMP}"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return None
+
+        time_remaining_key = self.coordinator.time_remaining
+        time_remaining = self.coordinator.data.get(time_remaining_key, 0)
+        status = self.coordinator.data.get(SENSOR_STATUS)
+
+        if time_remaining == 0 or status in ("standby", "powersave"):
+            return None
+
+        replace_timestamp = self.coordinator.replace_timestamp
+        if replace_timestamp:
+            return datetime.now()
+        else:
+            timestamp_str = self.coordinator.data.get(SENSOR_TIMESTAMP)
+            if timestamp_str:
+                try:
+                    return dateutil.parser.parse(timestamp_str, ignoretz=True)
+                except (ValueError, TypeError):
+                    return None
+        return None
+
+
+class AirfryerTotalTimeSensor(AirfryerSensorBase):
+    """Total time sensor for Philips Airfryer."""
+
+    _attr_name = "Total Time"
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_icon = "mdi:timer"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TOTAL_TIME}"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return None
+
+        time_total_key = self.coordinator.time_total
+        time_remaining_key = self.coordinator.time_remaining
+        time_remaining = self.coordinator.data.get(time_remaining_key, 0)
+        status = self.coordinator.data.get(SENSOR_STATUS)
+
+        if time_remaining == 0 or status in ("standby", "powersave"):
+            return None
+
+        return self.coordinator.data.get(time_total_key)
+
+
+class AirfryerDisplayTimeSensor(AirfryerSensorBase):
+    """Display time (remaining) sensor for Philips Airfryer."""
+
+    _attr_name = "Time Remaining"
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_icon = "mdi:timer-sand"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DISP_TIME}"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return None
+
+        time_remaining_key = self.coordinator.time_remaining
+        time_remaining = self.coordinator.data.get(time_remaining_key, 0)
+        status = self.coordinator.data.get(SENSOR_STATUS)
+
+        if time_remaining == 0 or status in ("standby", "powersave"):
+            return None
+
+        return time_remaining
+
+
+class AirfryerProgressSensor(AirfryerSensorBase):
+    """Progress sensor for Philips Airfryer."""
+
+    _attr_name = "Progress"
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_icon = "mdi:progress-clock"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_PROGRESS}"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return 0
+
+        time_total_key = self.coordinator.time_total
+        time_remaining_key = self.coordinator.time_remaining
+
+        time_remaining = self.coordinator.data.get(time_remaining_key, 0)
+        time_total = self.coordinator.data.get(time_total_key, 0)
+        status = self.coordinator.data.get(SENSOR_STATUS)
+
+        if time_remaining == 0 or status in ("standby", "powersave") or time_total == 0:
+            return 0
+
+        progress = (time_total - time_remaining) / time_total * 100
+        return round(progress, 1)
+
+
+class AirfryerDrawerOpenSensor(AirfryerSensorBase):
+    """Drawer open sensor for Philips Airfryer."""
+
+    _attr_name = "Drawer Open"
+    _attr_icon = "mdi:tray"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DRAWER_OPEN}"
+
+    @property
+    def native_value(self) -> bool | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return False
+        return self.coordinator.data.get(SENSOR_DRAWER_OPEN, False)
+
+
+class AirfryerDialogSensor(AirfryerSensorBase):
+    """Dialog sensor for Philips Airfryer."""
+
+    _attr_name = "Dialog"
+    _attr_icon = "mdi:message-alert"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DIALOG}"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return "none"
+        return self.coordinator.data.get(SENSOR_DIALOG, "none")
+
+
+class AirfryerAirspeedSensor(AirfryerSensorBase):
+    """Airspeed sensor for Philips Airfryer."""
+
+    _attr_name = "Airspeed"
+    _attr_icon = "mdi:fan"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_AIRSPEED}"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return 0
+        return self.coordinator.data.get(SENSOR_AIRSPEED, 0)
+
+
+class AirfryerTempProbeSensor(AirfryerSensorBase):
+    """Temperature probe sensor for Philips Airfryer."""
+
+    _attr_name = "Temperature Probe"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_icon = "mdi:thermometer-probe"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_TEMP_PROBE}"
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return 0
+        return self.coordinator.data.get(SENSOR_TEMP_PROBE, 0)
+
+
+class AirfryerProbeUnpluggedSensor(AirfryerSensorBase):
+    """Probe unplugged sensor for Philips Airfryer."""
+
+    _attr_name = "Probe Unplugged"
+    _attr_icon = "mdi:connection"
+
+    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry)
+        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_PROBE_UNPLUGGED}"
+
+    @property
+    def native_value(self) -> bool | None:
+        """Return the state."""
+        if self.coordinator.data is None:
+            return True
+        return self.coordinator.data.get(SENSOR_PROBE_UNPLUGGED, True)

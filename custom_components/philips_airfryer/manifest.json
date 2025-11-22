@@ -1,0 +1,13 @@
+{
+  "domain": "philips_airfryer",
+  "name": "Philips Airfryer",
+  "codeowners": ["@bram"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/bram/hacs_philips_airfryer",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/bram/hacs_philips_airfryer/issues",
+  "requirements": ["requests>=2.31.0"],
+  "version": "1.0.0"
+}
