@@ -81,6 +81,7 @@ class AirfryerAPI:
 
         # Create a fresh session for each request
         session = self._create_session()
+        response = None
 
         try:
             response = session.get(
@@ -89,14 +90,8 @@ class AirfryerAPI:
                 verify=False,
                 timeout=10,
             )
-        except requests.exceptions.RequestException as e:
-            _LOGGER.error("Failed to get status: %s", e)
-            return None
-        finally:
-            # Close session to release all connections
-            session.close()
 
-        try:
+            # Process response immediately while connection is still open
             if response.status_code == 401:
                 # Need to authenticate
                 challenge = response.headers.get("WWW-Authenticate", "")
@@ -109,15 +104,22 @@ class AirfryerAPI:
                 _LOGGER.error("Status request failed with code: %s", response.status_code)
                 return None
             else:
+                # Read and parse JSON while connection is open
                 try:
                     data = response.json()
                     return data
                 except json.JSONDecodeError:
                     _LOGGER.error("Failed to decode JSON response")
                     return None
+
+        except requests.exceptions.RequestException as e:
+            _LOGGER.error("Failed to get status: %s", e)
+            return None
         finally:
-            # Always close the response to free up connection
-            response.close()
+            # Clean up response and session
+            if response is not None:
+                response.close()
+            session.close()
 
     def send_command(self, command: dict[str, Any]) -> dict[str, Any] | None:
         """Send a command to the airfryer."""
@@ -130,6 +132,7 @@ class AirfryerAPI:
 
         # Create a fresh session for each request
         session = self._create_session()
+        response = None
 
         try:
             response = session.put(
@@ -139,27 +142,28 @@ class AirfryerAPI:
                 verify=False,
                 timeout=10,
             )
-        except requests.exceptions.RequestException as e:
-            _LOGGER.error("Failed to send command: %s", e)
-            return None
-        finally:
-            # Close session to release all connections
-            session.close()
 
-        try:
+            # Process response immediately while connection is still open
             if response.status_code != 200:
                 _LOGGER.error("Command failed with code: %s", response.status_code)
                 return None
             else:
+                # Read and parse JSON while connection is open
                 try:
                     data = response.json()
                     return data
                 except json.JSONDecodeError:
                     _LOGGER.error("Failed to decode JSON response")
                     return None
+
+        except requests.exceptions.RequestException as e:
+            _LOGGER.error("Failed to send command: %s", e)
+            return None
         finally:
-            # Always close the response to free up connection
-            response.close()
+            # Clean up response and session
+            if response is not None:
+                response.close()
+            session.close()
 
     def test_connection(self) -> bool:
         """Test the connection to the airfryer."""
