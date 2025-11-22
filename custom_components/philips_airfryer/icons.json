@@ -1,0 +1,13 @@
+{
+  "services": {
+    "turn_on": "mdi:power",
+    "turn_off": "mdi:power-off",
+    "start_cooking": "mdi:play",
+    "adjust_time": "mdi:clock-edit",
+    "adjust_temp": "mdi:thermometer-lines",
+    "toggle_airspeed": "mdi:fan",
+    "pause": "mdi:pause",
+    "start_resume": "mdi:play-pause",
+    "stop": "mdi:stop"
+  }
+}
