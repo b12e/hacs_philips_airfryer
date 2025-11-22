@@ -37,18 +37,12 @@ def discover_airfryers(timeout: int = 5) -> list[dict[str, Any]]:
                 response = data.decode("utf-8", errors="ignore")
 
                 _LOGGER.debug("Received UPnP response %d from %s", response_count, addr[0])
-
-                # Check if this is a Philips device
-                if "philips" not in response.lower():
-                    _LOGGER.debug("Response from %s is not a Philips device", addr[0])
-                    continue
+                _LOGGER.debug("Response content: %s", response[:500])  # Log first 500 chars
 
                 # Skip if we've already processed this IP
                 if addr[0] in seen_ips:
                     _LOGGER.debug("Already processed device at %s", addr[0])
                     continue
-
-                seen_ips.add(addr[0])
 
                 # Extract location from response
                 location = None
@@ -58,7 +52,11 @@ def discover_airfryers(timeout: int = 5) -> list[dict[str, Any]]:
                         break
 
                 if location:
-                    _LOGGER.debug("Parsing device description from %s", location)
+                    # Check if this response mentions Philips at all
+                    is_philips = "philips" in response.lower()
+                    _LOGGER.debug("Parsing device description from %s (Philips in response: %s)", location, is_philips)
+
+                    seen_ips.add(addr[0])
                     device_info = _parse_device_description(location, addr[0])
                     if device_info and device_info.get("is_airfryer"):
                         _LOGGER.info("Discovered Philips Airfryer at %s: %s", addr[0], device_info.get("model_number"))
@@ -95,6 +93,9 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
             _LOGGER.debug("Device description returned status code %d", response.status_code)
             return None
 
+        # Log the raw XML for debugging
+        _LOGGER.debug("Device XML response: %s", response.text[:1000])
+
         # Parse XML
         root = ET.fromstring(response.content)
 
@@ -113,9 +114,9 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
         friendly_name = _get_element_text(device, "friendlyName", ns)
         manufacturer = _get_element_text(device, "manufacturer", ns)
 
-        _LOGGER.debug(
-            "Device info - Type: %s, Model: %s, Number: %s, Name: %s, Manufacturer: %s",
-            device_type, model_name, model_number, friendly_name, manufacturer
+        _LOGGER.info(
+            "Found device at %s - Type: %s, Model: %s, Number: %s, Name: %s, Manufacturer: %s",
+            ip_address, device_type, model_name, model_number, friendly_name, manufacturer
         )
 
         # Check if it's an airfryer - be more flexible with detection
@@ -123,12 +124,23 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
 
         # Check multiple indicators
         if manufacturer and "philips" in manufacturer.lower():
+            _LOGGER.debug("Device manufacturer is Philips, checking model indicators...")
             if model_name and "venus" in model_name.lower():
+                _LOGGER.debug("Matched: venus in model name")
                 is_airfryer = True
             elif model_number and any(model in model_number.upper() for model in ["HD9880", "HD9875", "HD9255"]):
+                _LOGGER.debug("Matched: known model number")
                 is_airfryer = True
             elif friendly_name and "airfryer" in friendly_name.lower():
+                _LOGGER.debug("Matched: airfryer in friendly name")
                 is_airfryer = True
+            else:
+                _LOGGER.debug(
+                    "No match - model_name has venus: %s, model_number matches: %s, friendly_name has airfryer: %s",
+                    model_name and "venus" in model_name.lower() if model_name else False,
+                    bool(model_number and any(model in model_number.upper() for model in ["HD9880", "HD9875", "HD9255"])),
+                    friendly_name and "airfryer" in friendly_name.lower() if friendly_name else False
+                )
 
         if not is_airfryer:
             _LOGGER.debug("Device is not recognized as an airfryer")
