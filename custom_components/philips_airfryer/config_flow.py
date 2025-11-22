@@ -9,6 +9,7 @@ from homeassistant.components import ssdp
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 import homeassistant.helpers.config_validation as cv
 
 from .airfryer_api import AirfryerAPI
@@ -54,10 +55,10 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._discovered_devices: list[dict[str, Any]] = []
         self._model_config: dict[str, Any] = {}
-        self._ssdp_discovery_info: ssdp.SsdpServiceInfo | None = None
+        self._ssdp_discovery_info: SsdpServiceInfo | None = None
 
     async def async_step_ssdp(
-        self, discovery_info: ssdp.SsdpServiceInfo
+        self, discovery_info: SsdpServiceInfo
     ) -> FlowResult:
         """Handle SSDP discovery."""
         _LOGGER.debug("SSDP discovery: %s", discovery_info)
