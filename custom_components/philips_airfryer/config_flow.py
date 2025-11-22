@@ -5,6 +5,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components import ssdp
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -53,6 +54,51 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._discovered_devices: list[dict[str, Any]] = []
         self._model_config: dict[str, Any] = {}
+        self._ssdp_discovery_info: ssdp.SsdpServiceInfo | None = None
+
+    async def async_step_ssdp(
+        self, discovery_info: ssdp.SsdpServiceInfo
+    ) -> FlowResult:
+        """Handle SSDP discovery."""
+        _LOGGER.debug("SSDP discovery: %s", discovery_info)
+
+        # Extract IP address from discovery info
+        host = discovery_info.ssdp_location or discovery_info.ssdp_headers.get("_host")
+        if not host:
+            return self.async_abort(reason="no_ip_address")
+
+        # Parse IP from URL if needed
+        if "://" in host:
+            host = host.split("://")[1].split("/")[0].split(":")[0]
+
+        # Check if already configured
+        await self.async_set_unique_id(host)
+        self._abort_if_unique_id_configured()
+
+        # Store discovery info
+        self._ssdp_discovery_info = discovery_info
+
+        # Try to detect model from SSDP info
+        model_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NAME, "")
+        model_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NUMBER, "")
+        friendly_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_FRIENDLY_NAME, "Philips Airfryer")
+
+        # Check if it's likely an airfryer
+        if "venus" not in model_name.lower() and "airfryer" not in model_name.lower():
+            return self.async_abort(reason="not_airfryer")
+
+        # Detect model configuration
+        self._model_config = detect_model_config(model_number)
+
+        # Show confirmation form
+        self.context["title_placeholders"] = {
+            "name": f"{friendly_name} ({host})"
+        }
+
+        return await self.async_step_credentials(
+            suggested_ip=host,
+            suggested_model=self._model_config.get("model", "Unknown")
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

@@ -34,7 +34,9 @@
       "unknown": "Unexpected error occurred"
     },
     "abort": {
-      "already_configured": "This Airfryer is already configured"
+      "already_configured": "This Airfryer is already configured",
+      "no_ip_address": "Could not determine IP address from discovery",
+      "not_airfryer": "Discovered device is not a Philips Airfryer"
     }
   },
   "options": {
