@@ -21,7 +21,7 @@ A Home Assistant custom integration for Philips connected airfryers with full GU
    - Go to HACS > Integrations
    - Click the three dots in the top right corner
    - Select "Custom repositories"
-   - Add URL: `https://github.com/bram/hacs_philips_airfryer`
+   - Add URL: `https://github.com/b12e/hacs_philips_airfryer`
    - Category: Integration
 3. Click "Explore & Download Repositories"
 4. Search for "Philips Airfryer"
@@ -55,6 +55,16 @@ You need to extract the Client ID and Client Secret from your Philips NutriU app
 4. These values are base64-encoded strings
 
 For detailed instructions, see [this community discussion](https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15).
+
+Alternatively, follow these instructions:
+1. Create a bootstick with Android x86 and boot from it or install it in Proxmox. It seems to be important that Android x86 and the Airfryer are in the same network & subnet. Installing Android x86 in for example VMware might work, but seems to have some problems. *Ignore this step if you have a rooted Android phone or tablet.*
+2. Install NutriU and update Chrome (I recommend using Google Play Store and updating everything)
+3. Install SQLite Database Editor: https://play.google.com/store/apps/details?id=com.tomminosoftware.sqliteeditor
+4. Open SQLite Database Editor and allow Root for it (if that doesn't work Root might need to be enabled in Android 86 Developer Settings)
+5. In the SQLite Database Editor select NutriU > network_node.db > network_node
+6. The second last two columns are the ones we are interested in (swipe left to get there)
+
+(Thank you @noxhirsch for the [instructions](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md))
 
 ### Advanced Options
 
@@ -275,8 +285,7 @@ logger:
 
 ## Credits
 
-Based on the original pyscript implementation and Carsten T.'s findings on authentication:
-- [Home Assistant Community Discussion](https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15)
+Based on the original [pyscript implementation](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md) and [Carsten T.'s findings on authentication]((https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15)):
 
 ## License
 
@@ -284,4 +293,4 @@ MIT License
 
 ## Support
 
-For issues, feature requests, or questions, please [open an issue on GitHub](https://github.com/bram/hacs_philips_airfryer/issues).
+For issues, feature requests, or questions, please [open an issue on GitHub](https://github.com/b12e/hacs_philips_airfryer/issues).
