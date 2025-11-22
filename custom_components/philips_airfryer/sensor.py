@@ -17,7 +17,6 @@ from .const import (
     DOMAIN,
     SENSOR_DIALOG,
     SENSOR_DISP_TIME,
-    SENSOR_DRAWER_OPEN,
     SENSOR_PROGRESS,
     SENSOR_STATUS,
     SENSOR_TEMP,
@@ -25,7 +24,6 @@ from .const import (
     SENSOR_TOTAL_TIME,
     SENSOR_AIRSPEED,
     SENSOR_TEMP_PROBE,
-    SENSOR_PROBE_UNPLUGGED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,7 +46,6 @@ async def async_setup_entry(
         AirfryerTotalTimeSensor(coordinator, config_entry),
         AirfryerDisplayTimeSensor(coordinator, config_entry),
         AirfryerProgressSensor(coordinator, config_entry),
-        AirfryerDrawerOpenSensor(coordinator, config_entry),
         AirfryerDialogSensor(coordinator, config_entry),
     ]
 
@@ -56,10 +53,7 @@ async def async_setup_entry(
         entities.append(AirfryerAirspeedSensor(coordinator, config_entry))
 
     if probe:
-        entities.extend([
-            AirfryerTempProbeSensor(coordinator, config_entry),
-            AirfryerProbeUnpluggedSensor(coordinator, config_entry),
-        ])
+        entities.append(AirfryerTempProbeSensor(coordinator, config_entry))
 
     async_add_entities(entities)
 
@@ -251,25 +245,6 @@ class AirfryerProgressSensor(AirfryerSensorBase):
         return round(progress, 1)
 
 
-class AirfryerDrawerOpenSensor(AirfryerSensorBase):
-    """Drawer open sensor for Philips Airfryer."""
-
-    _attr_name = "Drawer Open"
-    _attr_icon = "mdi:tray"
-
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
-        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_DRAWER_OPEN}"
-
-    @property
-    def native_value(self) -> bool | None:
-        """Return the state."""
-        if self.coordinator.data is None:
-            return False
-        return self.coordinator.data.get(SENSOR_DRAWER_OPEN, False)
-
-
 class AirfryerDialogSensor(AirfryerSensorBase):
     """Dialog sensor for Philips Airfryer."""
 
@@ -327,22 +302,3 @@ class AirfryerTempProbeSensor(AirfryerSensorBase):
         if self.coordinator.data is None:
             return 0
         return self.coordinator.data.get(SENSOR_TEMP_PROBE, 0)
-
-
-class AirfryerProbeUnpluggedSensor(AirfryerSensorBase):
-    """Probe unplugged sensor for Philips Airfryer."""
-
-    _attr_name = "Probe Unplugged"
-    _attr_icon = "mdi:connection"
-
-    def __init__(self, coordinator, config_entry: ConfigEntry) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, config_entry)
-        self._attr_unique_id = f"{config_entry.entry_id}_{SENSOR_PROBE_UNPLUGGED}"
-
-    @property
-    def native_value(self) -> bool | None:
-        """Return the state."""
-        if self.coordinator.data is None:
-            return True
-        return self.coordinator.data.get(SENSOR_PROBE_UNPLUGGED, True)
