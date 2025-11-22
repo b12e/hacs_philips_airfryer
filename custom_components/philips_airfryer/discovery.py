@@ -119,50 +119,22 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
             ip_address, device_type, model_name, model_number, friendly_name, manufacturer
         )
 
-        # Check if it's an airfryer - be more flexible with detection
+        # Check if it's an airfryer
+        # Primary check: Philips manufacturer + DiProduct device type
         is_airfryer = False
 
-        # Check multiple indicators - use OR logic, not elif
         if manufacturer and "philips" in manufacturer.lower():
-            _LOGGER.debug("Device manufacturer is Philips, checking model indicators...")
+            _LOGGER.debug("Device manufacturer is Philips")
 
-            # Check for Venus (airfryer model name)
-            if model_name and "venus" in model_name.lower():
-                _LOGGER.debug("Matched: venus in model name (%s)", model_name)
-                is_airfryer = True
-
-            # Check for known model numbers
-            if model_number:
-                model_number_upper = model_number.upper()
-                _LOGGER.debug("Checking model number: %s", model_number_upper)
-                if any(model in model_number_upper for model in ["HD9880", "HD9875", "HD9255"]):
-                    _LOGGER.debug("Matched: known model number (%s)", model_number)
-                    is_airfryer = True
-
-            # Check friendly name
-            if friendly_name and "airfryer" in friendly_name.lower():
-                _LOGGER.debug("Matched: airfryer in friendly name (%s)", friendly_name)
-                is_airfryer = True
-
-            # Check device type for DiProduct
+            # Check if it's a DiProduct (Philips connected appliance)
             if device_type and "diproduct" in device_type.lower():
-                _LOGGER.debug("Matched: DiProduct in device type (%s) - likely an airfryer", device_type)
+                _LOGGER.debug("Matched: DiProduct device type - this is a Philips connected appliance")
                 is_airfryer = True
-
-            if not is_airfryer:
-                _LOGGER.debug(
-                    "No match - model_name: %s (has venus: %s), model_number: %s (matches known: %s), friendly_name: %s (has airfryer: %s), device_type: %s",
-                    model_name,
-                    bool(model_name and "venus" in model_name.lower()),
-                    model_number,
-                    bool(model_number and any(model in model_number.upper() for model in ["HD9880", "HD9875", "HD9255"])),
-                    friendly_name,
-                    bool(friendly_name and "airfryer" in friendly_name.lower()),
-                    device_type
-                )
+            else:
+                _LOGGER.debug("Not a DiProduct device (type: %s)", device_type)
 
         if not is_airfryer:
-            _LOGGER.debug("Device is not recognized as an airfryer")
+            _LOGGER.debug("Device is not recognized as a Philips airfryer")
             return None
 
         # Detect model configuration

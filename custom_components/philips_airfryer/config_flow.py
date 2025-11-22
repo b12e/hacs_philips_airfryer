@@ -82,9 +82,11 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         model_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NAME, "")
         model_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NUMBER, "")
         friendly_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_FRIENDLY_NAME, "Philips Airfryer")
+        device_type = discovery_info.upnp.get(ssdp.ATTR_UPNP_DEVICE_TYPE, "")
 
-        # Check if it's likely an airfryer
-        if "venus" not in model_name.lower() and "airfryer" not in model_name.lower():
+        # Check if it's a DiProduct (Philips connected appliance/airfryer)
+        if "diproduct" not in device_type.lower():
+            _LOGGER.debug("Not a DiProduct device, aborting SSDP discovery")
             return self.async_abort(reason="not_airfryer")
 
         # Detect model configuration
