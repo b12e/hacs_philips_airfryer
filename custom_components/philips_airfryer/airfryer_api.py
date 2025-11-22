@@ -7,7 +7,6 @@ from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,17 +32,19 @@ class AirfryerAPI:
         self.command_url = command_url
         self.token = ""
 
-        # Create session with custom settings to prevent connection reuse issues
-        self.session = requests.Session()
-        # Configure adapter with connection settings
+    def _create_session(self) -> requests.Session:
+        """Create a fresh session for each request to avoid connection issues."""
+        session = requests.Session()
+        # Configure adapter to prevent connection pooling issues
         adapter = HTTPAdapter(
             pool_connections=1,
             pool_maxsize=1,
-            max_retries=Retry(total=0, connect=0, read=0, redirect=0, status=0),
+            max_retries=0,  # No automatic retries
             pool_block=False
         )
-        self.session.mount('https://', adapter)
-        self.session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
+        return session
 
     def _decode(self, txt: str) -> bytes:
         """Decode base64 string."""
@@ -78,8 +79,11 @@ class AirfryerAPI:
                 "Connection": "close",
             }
 
+        # Create a fresh session for each request
+        session = self._create_session()
+
         try:
-            response = self.session.get(
+            response = session.get(
                 f"https://{self.ip_address}{self.command_url}",
                 headers=headers,
                 verify=False,
@@ -88,6 +92,9 @@ class AirfryerAPI:
         except requests.exceptions.RequestException as e:
             _LOGGER.error("Failed to get status: %s", e)
             return None
+        finally:
+            # Close session to release all connections
+            session.close()
 
         try:
             if response.status_code == 401:
@@ -121,8 +128,11 @@ class AirfryerAPI:
             "Connection": "close",
         }
 
+        # Create a fresh session for each request
+        session = self._create_session()
+
         try:
-            response = self.session.put(
+            response = session.put(
                 f"https://{self.ip_address}{self.command_url}",
                 headers=headers,
                 data=json.dumps(command),
@@ -132,6 +142,9 @@ class AirfryerAPI:
         except requests.exceptions.RequestException as e:
             _LOGGER.error("Failed to send command: %s", e)
             return None
+        finally:
+            # Close session to release all connections
+            session.close()
 
         try:
             if response.status_code != 200:
