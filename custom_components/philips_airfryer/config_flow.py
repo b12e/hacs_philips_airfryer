@@ -80,6 +80,10 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             selected_ip = user_input["device"]
 
+            # Check if user selected manual setup
+            if selected_ip == "manual":
+                return await self.async_step_manual()
+
             # Find the selected device
             selected_device = next(
                 (d for d in self._discovered_devices if d["ip_address"] == selected_ip),
@@ -87,6 +91,7 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             if selected_device:
+                # UPnP discovery provides the model, so use it directly
                 self._model_config = selected_device["config"]
                 return await self.async_step_credentials(
                     suggested_ip=selected_ip,
