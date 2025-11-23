@@ -1,5 +1,5 @@
 """Sensor platform for Philips Airfryer."""
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
@@ -132,11 +132,11 @@ class AirfryerTemperatureSensor(AirfryerSensorBase):
 
 
 class AirfryerTimestampSensor(AirfryerSensorBase):
-    """Timestamp sensor for Philips Airfryer."""
+    """Completion timestamp sensor for Philips Airfryer."""
 
-    _attr_name = "Timestamp"
+    _attr_name = "Estimated Completion Time"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_icon = "mdi:clock-outline"
+    _attr_icon = "mdi:clock-end"
 
     def __init__(self, coordinator, config_entry: ConfigEntry, mac_address: str | None = None) -> None:
         """Initialize the sensor."""
@@ -145,7 +145,11 @@ class AirfryerTimestampSensor(AirfryerSensorBase):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the state."""
+        """Return the completion timestamp (now + time_remaining).
+
+        This allows Home Assistant to dynamically display time remaining
+        without needing constant polling updates.
+        """
         if self.coordinator.data is None:
             return None
 
@@ -156,22 +160,10 @@ class AirfryerTimestampSensor(AirfryerSensorBase):
         if time_remaining == 0 or status in ("standby", "powersave"):
             return None
 
-        replace_timestamp = self.coordinator.replace_timestamp
-        if replace_timestamp:
-            return dt_util.now()
-        else:
-            timestamp_str = self.coordinator.data.get(SENSOR_TIMESTAMP)
-            if timestamp_str:
-                try:
-                    # Parse timestamp and ensure it has timezone info
-                    parsed_dt = dateutil.parser.parse(timestamp_str)
-                    # If no timezone, assume it's in the system timezone
-                    if parsed_dt.tzinfo is None:
-                        parsed_dt = dt_util.as_local(parsed_dt.replace(tzinfo=dt_util.UTC))
-                    return parsed_dt
-                except (ValueError, TypeError):
-                    return None
-        return None
+        # Calculate completion time: current time + remaining seconds
+        # This gives a future timestamp that Home Assistant can use to show
+        # a dynamic countdown
+        return dt_util.now() + timedelta(seconds=time_remaining)
 
 
 class AirfryerTotalTimeSensor(AirfryerSensorBase):
