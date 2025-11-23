@@ -5,10 +5,10 @@ A Home Assistant custom integration for Philips connected airfryers with full GU
 ## Features
 
 - Full GUI configuration through Home Assistant's integration setup
+- Automatic discovery (only tested with HD9880 so far)
 - Real-time monitoring of airfryer status, temperature, time remaining, and progress
 - Control services for turning on/off, starting cooking, adjusting time/temperature, and more
-- Support for advanced models with airspeed control (HD9880/90)
-- Support for temperature probe (HD9880/90 & HD9875/90)
+- Support for airspeed control (HD9880/90) and  temperature probe (HD9880/90 & HD9875/90)
 - Local polling - works entirely on your local network
 - HACS compatible for easy installation and updates
 
@@ -61,7 +61,7 @@ For detailed instructions, see [this community discussion](https://community.hom
 
 (Thank you @noxhirsch for the [second method](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md))
 
-### Troubleshooting
+## Troubleshooting
 
 #### Network timeout or sensors having "unknown" state
 The Air Fryer is very specific in how it handles network requests. It expects the connection to remain open. Sometimes it gets in a "locked" state (you can see this yourself by going to http://YOUR_AIRFRYER_IP_ADDRESS/upnp/description.xml, the page will fail to load).
@@ -71,7 +71,7 @@ When this happens, just unplug the airfryer and plug it back in.
 #### Updates don't come through for a while
 The default polling interval is 60 seconds (once a minute). You can change this via advanced options. I would discourage you from polling too often, as this increases the likelyhood of the air fryer becoming "stuck" (see the previous troubleshooting item).
   
-### Advanced Options
+## Advanced Options
 
 After initial setup, you can configure advanced options:
 
@@ -260,21 +260,11 @@ This integration has been tested with:
 - HD9255 (with experimental settings)
 - HD9875/90 (with probe support)
 - HD9880/90 (with airspeed and probe support)
-- Other Philips connected airfryers should work with the default settings
+- Other Philips connected airfryers may work with the default settings. Please create an pull request to update this documentation if it works out of the box, or contribute to add support.
 
-## Troubleshooting
-
-### Connection Issues
-
-- Verify the IP address is correct and the airfryer is on your local network
-- Check that your Client ID and Client Secret are correct
-- Ensure your airfryer is powered on
-- Try adjusting the update interval if you're experiencing frequent disconnections
+## Further Troubleshooting
 
 ### Device-Specific Issues
-
-- **HD9880/90**: Set Command URL to `/di/v1/products/1/venusaf` and enable Airspeed and Probe options
-- **HD9255**: Set Time Remaining to `cur_time` and Time Total to `time` in the options
 - **Offline devices**: Enable "Replace Timestamp" if you block internet access for the airfryer
 
 ### Debug Logging
@@ -290,7 +280,7 @@ logger:
 
 ## Credits
 
-Based on the original [pyscript implementation](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md) and [Carsten T.'s findings on authentication]((https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15)):
+Based on the original [pyscript implementation](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md) and [Carsten T.'s findings on authentication](https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15).
 
 ## License
 
