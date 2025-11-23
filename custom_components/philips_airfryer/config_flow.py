@@ -58,6 +58,8 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._model_config: dict[str, Any] = {}
         self._ssdp_discovery_info: SsdpServiceInfo | None = None
         self._mac_address: str | None = None
+        self._suggested_ip: str | None = None
+        self._suggested_model: str | None = None
 
     async def async_step_ssdp(
         self, discovery_info: SsdpServiceInfo
@@ -234,8 +236,15 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle credentials input."""
         errors: dict[str, str] = {}
 
+        # Store suggested values on first call
+        if suggested_ip is not None:
+            self._suggested_ip = suggested_ip
+        if suggested_model is not None:
+            self._suggested_model = suggested_model
+
         if user_input is not None:
-            ip_address = suggested_ip or user_input.get(CONF_IP_ADDRESS)
+            # Use stored values if available, otherwise try to get from user_input
+            ip_address = self._suggested_ip or user_input.get(CONF_IP_ADDRESS)
             client_id = user_input[CONF_CLIENT_ID]
             client_secret = user_input[CONF_CLIENT_SECRET]
 
@@ -296,9 +305,9 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         # Show credentials form
-        description = f"Enter credentials for {suggested_model or 'your airfryer'}"
-        if suggested_ip:
-            description += f" at {suggested_ip}"
+        description = f"Enter credentials for {self._suggested_model or 'your airfryer'}"
+        if self._suggested_ip:
+            description += f" at {self._suggested_ip}"
 
         return self.async_show_form(
             step_id="credentials",
