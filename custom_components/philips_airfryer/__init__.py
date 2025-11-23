@@ -156,6 +156,13 @@ class AirfryerDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.hass.async_add_executor_job(self.api.get_status)
             if data is None:
                 raise UpdateFailed("Failed to fetch data from airfryer")
+
+            # Log the raw data for debugging
+            _LOGGER.debug("Received data from airfryer: %s", data)
+            _LOGGER.debug("Time remaining key '%s' = %s", self.time_remaining, data.get(self.time_remaining))
+            _LOGGER.debug("Time total key '%s' = %s", self.time_total, data.get(self.time_total))
+            _LOGGER.debug("Status = %s", data.get("status"))
+
             return data
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
