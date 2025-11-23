@@ -172,11 +172,14 @@ class AirfryerDataUpdateCoordinator(DataUpdateCoordinator):
             if data is None:
                 raise UpdateFailed("Failed to fetch data from airfryer")
 
-            # Log the raw data for debugging
-            _LOGGER.debug("Received data from airfryer: %s", data)
-            _LOGGER.debug("Time remaining key '%s' = %s", self.time_remaining, data.get(self.time_remaining))
-            _LOGGER.debug("Time total key '%s' = %s", self.time_total, data.get(self.time_total))
-            _LOGGER.debug("Status = %s", data.get("status"))
+            # Log the complete raw JSON response for debugging
+            import json
+            _LOGGER.debug("Raw JSON from airfryer: %s", json.dumps(data, indent=2, sort_keys=True))
+
+            # Log specific field mappings for troubleshooting
+            _LOGGER.debug("Field mapping - time_remaining key '%s' = %s", self.time_remaining, data.get(self.time_remaining))
+            _LOGGER.debug("Field mapping - time_total key '%s' = %s", self.time_total, data.get(self.time_total))
+            _LOGGER.debug("Field mapping - status = %s", data.get("status"))
 
             return data
         except Exception as err:
