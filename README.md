@@ -28,35 +28,30 @@ A Home Assistant custom integration for Philips connected airfryers with full GU
 5. Click "Download"
 6. Restart Home Assistant
 
-### Manual Installation
-
-1. Copy the `custom_components/philips_airfryer` directory to your Home Assistant's `custom_components` directory
-2. Restart Home Assistant
-
 ## Configuration
 
 ### Initial Setup
 
-1. Go to Home Assistant Settings > Devices & Services
+1. Go to Home Assistant Settings > Devices & Services. Your device may be automatically discovered. If so, you can skip steps 2-4 and go straight to step 5.
 2. Click "+ Add Integration"
 3. Search for "Philips Airfryer"
 4. Enter the following required information:
    - **IP Address**: The local IP address of your airfryer (e.g., `192.168.0.123`)
-   - **Client ID**: Your airfryer's client ID (base64 encoded string)
-   - **Client Secret**: Your airfryer's client secret (base64 encoded string)
+5. Enter your **Client ID** and **Client Secret**. See below for the steps on how to get these.
 
 ### How to Get Client ID and Client Secret
 
 You need to extract the Client ID and Client Secret from your Philips NutriU app. Here are the general steps:
 
+#### Method 1: Network intercept
 1. Use a network monitoring tool (like Charles Proxy or Wireshark) while using the NutriU app
-2. Look for API calls to your airfryer
-3. Extract the `client_id` and `client_secret` from the authentication headers
-4. These values are base64-encoded strings
+2. Look for API calls to your airfryer. There should be an API call to www.backend.vbs.versuni.com
+/api/`UUID`/Profile/self/Appliance containing JSON including `clientId` and `clientSecret`. These values are base64-encoded strings
 
 For detailed instructions, see [this community discussion](https://community.home-assistant.io/t/philips-airfryer-nutriu-integration-alexa-only/544333/15).
 
-Alternatively, follow these instructions:
+
+#### Method 2: Android app database
 1. Create a bootstick with Android x86 and boot from it or install it in Proxmox. It seems to be important that Android x86 and the Airfryer are in the same network & subnet. Installing Android x86 in for example VMware might work, but seems to have some problems. *Ignore this step if you have a rooted Android phone or tablet.*
 2. Install NutriU and update Chrome (I recommend using Google Play Store and updating everything)
 3. Install SQLite Database Editor: https://play.google.com/store/apps/details?id=com.tomminosoftware.sqliteeditor
@@ -64,8 +59,15 @@ Alternatively, follow these instructions:
 5. In the SQLite Database Editor select NutriU > network_node.db > network_node
 6. The second last two columns are the ones we are interested in (swipe left to get there)
 
-(Thank you @noxhirsch for the [instructions](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md))
+(Thank you @noxhirsch for the [second method](https://github.com/noxhirsch/Pyscript-Philips-Airfryer/blob/main/README.md))
 
+### Troubleshooting
+
+#### Network timeout or sensors having "unknown" state
+The Air Fryer is very specific in how it handles network requests. It expects the connection to remain open. Sometimes it gets in a "locked" state (you can see this yourself by going to http://YOUR_AIRFRYER_IP_ADDRESS/upnp/description.xml, the page will fail to load).
+
+When this happens, just unplug the airfryer and plug it back in. 
+  
 ### Advanced Options
 
 After initial setup, you can configure advanced options:
