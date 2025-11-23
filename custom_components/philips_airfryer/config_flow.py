@@ -5,11 +5,18 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components import ssdp
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_DEVICE_TYPE,
+    ATTR_UPNP_FRIENDLY_NAME,
+    ATTR_UPNP_MODEL_NAME,
+    ATTR_UPNP_MODEL_NUMBER,
+    ATTR_UPNP_SERIAL,
+    ATTR_UPNP_UDN,
+    SsdpServiceInfo,
+)
 import homeassistant.helpers.config_validation as cv
 
 from .airfryer_api import AirfryerAPI
@@ -80,12 +87,12 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._ssdp_discovery_info = discovery_info
 
         # Try to detect model from SSDP info
-        model_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NAME, "")
-        model_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_MODEL_NUMBER, "")
-        friendly_name = discovery_info.upnp.get(ssdp.ATTR_UPNP_FRIENDLY_NAME, "Philips Airfryer")
-        device_type = discovery_info.upnp.get(ssdp.ATTR_UPNP_DEVICE_TYPE, "")
-        serial_number = discovery_info.upnp.get(ssdp.ATTR_UPNP_SERIAL, "")
-        udn = discovery_info.upnp.get(ssdp.ATTR_UPNP_UDN, "")
+        model_name = discovery_info.upnp.get(ATTR_UPNP_MODEL_NAME, "")
+        model_number = discovery_info.upnp.get(ATTR_UPNP_MODEL_NUMBER, "")
+        friendly_name = discovery_info.upnp.get(ATTR_UPNP_FRIENDLY_NAME, "Philips Airfryer")
+        device_type = discovery_info.upnp.get(ATTR_UPNP_DEVICE_TYPE, "")
+        serial_number = discovery_info.upnp.get(ATTR_UPNP_SERIAL, "")
+        udn = discovery_info.upnp.get(ATTR_UPNP_UDN, "")
 
         # Check if it's a DiProduct (Philips connected appliance/airfryer)
         if "diproduct" not in device_type.lower():

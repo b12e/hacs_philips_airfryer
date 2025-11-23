@@ -67,6 +67,9 @@ For detailed instructions, see [this community discussion](https://community.hom
 The Air Fryer is very specific in how it handles network requests. It expects the connection to remain open. Sometimes it gets in a "locked" state (you can see this yourself by going to http://YOUR_AIRFRYER_IP_ADDRESS/upnp/description.xml, the page will fail to load).
 
 When this happens, just unplug the airfryer and plug it back in. 
+
+#### Updates don't come through for a while
+The default polling interval is 60 seconds (once a minute). You can change this via advanced options. I would discourage you from polling too often, as this increases the likelyhood of the air fryer becoming "stuck" (see the previous troubleshooting item).
   
 ### Advanced Options
 
@@ -85,7 +88,7 @@ Available options:
 - **Enable Temperature Probe**: Enable for HD9880/90 & HD9875/90 with temperature probe
   - Default: `False`
 - **Update Interval**: How often to poll the airfryer (in seconds)
-  - Default: `20` seconds
+  - Default: `60` seconds
 - **Replace Timestamp**: Set to `True` if you block internet access for the airfryer
   - Default: `False`
 - **Time Remaining Field**: Set to `cur_time` for HD9255 (Experimental)

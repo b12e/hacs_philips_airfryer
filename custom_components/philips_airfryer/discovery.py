@@ -26,6 +26,7 @@ def discover_device_info(ip_address: str) -> dict[str, Any] | None:
 
     # Try common UPnP description paths
     common_paths = [
+        f"http://{ip_address}/upnp/description.xml",  # Philips devices use this path
         f"http://{ip_address}:49153/description.xml",
         f"http://{ip_address}:49152/description.xml",
         f"http://{ip_address}/description.xml",
