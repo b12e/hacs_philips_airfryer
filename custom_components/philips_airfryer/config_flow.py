@@ -33,7 +33,7 @@ from .const import (
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
-from .discovery import discover_airfryers, detect_model_config
+from .discovery import discover_airfryers, discover_device_info, detect_model_config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -205,10 +205,34 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ip_address = user_input[CONF_IP_ADDRESS]
             model = user_input[CONF_MODEL]
 
-            # Set model configuration
-            self._model_config = detect_model_config(
-                model if model != "Other (untested)" else None
+            # Try to discover device info (including MAC address) from the IP
+            _LOGGER.debug("Attempting to discover device info for manually entered IP: %s", ip_address)
+            device_info = await self.hass.async_add_executor_job(
+                discover_device_info, ip_address
             )
+
+            if device_info:
+                # Device discovered via UPnP - extract MAC and potentially override model
+                self._mac_address = device_info.get("mac_address")
+                _LOGGER.info("Discovered MAC address via UPnP: %s", self._mac_address)
+
+                # If device was discovered and model is auto-detected, use it
+                if model == "Other (untested)" and device_info.get("model_number"):
+                    self._model_config = device_info["config"]
+                    model = device_info["suggested_model"]
+                    _LOGGER.info("Auto-detected model from UPnP: %s", model)
+                else:
+                    # Use user-selected model
+                    self._model_config = detect_model_config(
+                        model if model != "Other (untested)" else None
+                    )
+            else:
+                # No UPnP discovery - use user-selected model, no MAC address
+                _LOGGER.debug("Could not discover device info via UPnP for %s", ip_address)
+                self._model_config = detect_model_config(
+                    model if model != "Other (untested)" else None
+                )
+                self._mac_address = None
 
             return await self.async_step_credentials(
                 suggested_ip=ip_address, suggested_model=model

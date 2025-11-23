@@ -16,6 +16,32 @@ SSDP_DISCOVER = (
 )
 
 
+def discover_device_info(ip_address: str) -> dict[str, Any] | None:
+    """Try to discover device info from a specific IP address via UPnP.
+
+    This attempts to fetch the device description XML from common UPnP ports/paths.
+    Returns device info dict if successful, None otherwise.
+    """
+    _LOGGER.debug("Attempting to discover device info for %s", ip_address)
+
+    # Try common UPnP description paths
+    common_paths = [
+        f"http://{ip_address}:49153/description.xml",
+        f"http://{ip_address}:49152/description.xml",
+        f"http://{ip_address}/description.xml",
+    ]
+
+    for location in common_paths:
+        _LOGGER.debug("Trying UPnP location: %s", location)
+        device_info = _parse_device_description(location, ip_address)
+        if device_info:
+            _LOGGER.info("Successfully discovered device info at %s", location)
+            return device_info
+
+    _LOGGER.debug("Could not discover device info for %s", ip_address)
+    return None
+
+
 def discover_airfryers(timeout: int = 10) -> list[dict[str, Any]]:
     """Discover Philips Airfryers on the network via UPnP."""
     _LOGGER.debug("Starting UPnP discovery for Philips Airfryers")
