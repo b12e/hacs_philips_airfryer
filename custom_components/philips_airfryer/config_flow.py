@@ -100,11 +100,11 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if "8000-" in udn:
                 potential_mac = udn.split("8000-")[-1].replace("-", ":")
                 if len(potential_mac) >= 17:  # MAC address length with colons
-                    mac_address = potential_mac[:17].upper()
+                    mac_address = potential_mac[:17].lower()  # Lowercase for HA compatibility
             # Alternative: MAC might be in serial number
             elif serial_number and len(serial_number) >= 12:
                 # Try to format as MAC if it looks like one
-                cleaned = serial_number.replace(":", "").replace("-", "").upper()
+                cleaned = serial_number.replace(":", "").replace("-", "").lower()
                 if len(cleaned) >= 12 and cleaned[:12].isalnum():
                     mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
 
