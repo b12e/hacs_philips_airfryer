@@ -40,6 +40,7 @@ from .const import (
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
 )
+from .discovery import discover_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,9 +80,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
-    # Get MAC address if available
+    # Get MAC address if available, try to discover if missing
     mac_address = entry.data.get(CONF_MAC_ADDRESS)
-    _LOGGER.debug("MAC address from config entry: %s", mac_address)
+    if mac_address is None:
+        _LOGGER.info("No MAC address in config, attempting to discover via UPnP")
+        device_info = await hass.async_add_executor_job(discover_device_info, ip_address)
+        if device_info and device_info.get("mac_address"):
+            mac_address = device_info["mac_address"]
+            _LOGGER.info("Discovered MAC address via UPnP: %s", mac_address)
+            # Update config entry with discovered MAC
+            hass.config_entries.async_update_entry(
+                entry,
+                data={**entry.data, CONF_MAC_ADDRESS: mac_address}
+            )
+        else:
+            _LOGGER.debug("Could not discover MAC address for %s", ip_address)
+    else:
+        _LOGGER.debug("MAC address from config entry: %s", mac_address)
 
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})
