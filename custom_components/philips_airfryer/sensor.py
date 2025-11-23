@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import dateutil.parser
+from homeassistant.util import dt as dt_util
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -157,12 +158,17 @@ class AirfryerTimestampSensor(AirfryerSensorBase):
 
         replace_timestamp = self.coordinator.replace_timestamp
         if replace_timestamp:
-            return datetime.now()
+            return dt_util.now()
         else:
             timestamp_str = self.coordinator.data.get(SENSOR_TIMESTAMP)
             if timestamp_str:
                 try:
-                    return dateutil.parser.parse(timestamp_str, ignoretz=True)
+                    # Parse timestamp and ensure it has timezone info
+                    parsed_dt = dateutil.parser.parse(timestamp_str)
+                    # If no timezone, assume it's in the system timezone
+                    if parsed_dt.tzinfo is None:
+                        parsed_dt = dt_util.as_local(parsed_dt.replace(tzinfo=dt_util.UTC))
+                    return parsed_dt
                 except (ValueError, TypeError):
                     return None
         return None
