@@ -2,6 +2,8 @@
 
 A Home Assistant custom integration for Philips connected airfryers with full GUI configuration support via HACS.
 
+<img width="1052" height="852" alt="image" src="https://github.com/user-attachments/assets/337b5532-67d6-4a17-8321-a7e971d8f2b8" />
+
 ## Features
 
 - Full GUI configuration through Home Assistant's integration setup
