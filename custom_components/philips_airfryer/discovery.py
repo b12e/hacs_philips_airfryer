@@ -144,21 +144,38 @@ def _parse_device_description(location: str, ip_address: str) -> dict[str, Any] 
         serial_number = _get_element_text(device, "serialNumber", ns)
         udn = _get_element_text(device, "UDN", ns)
 
-        # Extract MAC address from UDN if available (often in format uuid:MACADDRESS-...)
+        # Extract MAC address - try multiple sources in order of reliability
         mac_address = None
-        if udn:
+
+        # 1. Try cppId field first (Philips-specific field with MAC in correct format)
+        cpp_id = _get_element_text(device, "cppId", ns)
+        if cpp_id and ":" in cpp_id and len(cpp_id) == 17:
+            mac_address = cpp_id.lower()
+
+        # 2. Try to extract from UDN if cppId not found
+        if not mac_address and udn:
             # Try to extract MAC from UDN (format varies by device)
             # Common format: uuid:00000000-0000-1000-8000-XXXXXXXXXXXX where X is MAC
             if "8000-" in udn:
                 potential_mac = udn.split("8000-")[-1].replace("-", ":")
                 if len(potential_mac) >= 17:  # MAC address length with colons
                     mac_address = potential_mac[:17].lower()  # Lowercase for HA compatibility
-            # Alternative: MAC might be in serial number
-            elif serial_number and len(serial_number) >= 12:
-                # Try to format as MAC if it looks like one
-                cleaned = serial_number.replace(":", "").replace("-", "").lower()
-                if len(cleaned) >= 12 and cleaned[:12].isalnum():
-                    mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
+            else:
+                # Alternative format: uuid:12345678-1234-1234-1234-XXXXXXXXXXXX where last 12 hex chars are MAC
+                # Extract last part after final dash and check if it looks like a MAC
+                udn_parts = udn.split("-")
+                if len(udn_parts) > 0:
+                    last_part = udn_parts[-1].replace(":", "").lower()
+                    if len(last_part) >= 12 and all(c in "0123456789abcdef" for c in last_part[:12]):
+                        mac_hex = last_part[:12]
+                        mac_address = ":".join([mac_hex[i:i+2] for i in range(0, 12, 2)])
+
+        # 3. Fallback: Try MAC from serial number
+        if not mac_address and serial_number and len(serial_number) >= 12:
+            # Try to format as MAC if it looks like one
+            cleaned = serial_number.replace(":", "").replace("-", "").lower()
+            if len(cleaned) >= 12 and cleaned[:12].isalnum():
+                mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
 
         _LOGGER.info(
             "Found device at %s - Type: %s, Model: %s, Number: %s, Name: %s, Manufacturer: %s, MAC: %s",

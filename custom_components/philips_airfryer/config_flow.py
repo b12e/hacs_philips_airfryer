@@ -108,12 +108,22 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 potential_mac = udn.split("8000-")[-1].replace("-", ":")
                 if len(potential_mac) >= 17:  # MAC address length with colons
                     mac_address = potential_mac[:17].lower()  # Lowercase for HA compatibility
-            # Alternative: MAC might be in serial number
-            elif serial_number and len(serial_number) >= 12:
-                # Try to format as MAC if it looks like one
-                cleaned = serial_number.replace(":", "").replace("-", "").lower()
-                if len(cleaned) >= 12 and cleaned[:12].isalnum():
-                    mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
+            else:
+                # Alternative format: uuid:12345678-1234-1234-1234-XXXXXXXXXXXX where last 12 hex chars are MAC
+                # Extract last part after final dash and check if it looks like a MAC
+                udn_parts = udn.split("-")
+                if len(udn_parts) > 0:
+                    last_part = udn_parts[-1].replace(":", "").lower()
+                    if len(last_part) >= 12 and all(c in "0123456789abcdef" for c in last_part[:12]):
+                        mac_hex = last_part[:12]
+                        mac_address = ":".join([mac_hex[i:i+2] for i in range(0, 12, 2)])
+
+        # Fallback: Try MAC from serial number if not found in UDN
+        if not mac_address and serial_number and len(serial_number) >= 12:
+            # Try to format as MAC if it looks like one
+            cleaned = serial_number.replace(":", "").replace("-", "").lower()
+            if len(cleaned) >= 12 and cleaned[:12].isalnum():
+                mac_address = ":".join([cleaned[i:i+2] for i in range(0, 12, 2)])
 
         self._mac_address = mac_address
 
