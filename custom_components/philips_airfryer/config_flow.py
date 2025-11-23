@@ -235,7 +235,7 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            ip_address = suggested_ip or user_input[CONF_IP_ADDRESS]
+            ip_address = suggested_ip or user_input.get(CONF_IP_ADDRESS)
             client_id = user_input[CONF_CLIENT_ID]
             client_secret = user_input[CONF_CLIENT_SECRET]
 
