@@ -82,7 +82,10 @@ class AirfryerSensorBase(CoordinatorEntity, SensorEntity):
 
         # Add MAC address as a connection if available
         if self._mac_address:
+            _LOGGER.debug("Adding MAC address connection: %s", self._mac_address)
             device_info["connections"] = {(dr.CONNECTION_NETWORK_MAC, self._mac_address)}
+        else:
+            _LOGGER.debug("No MAC address available for device connection")
 
         return device_info
 

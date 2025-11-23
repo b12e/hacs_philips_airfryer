@@ -81,6 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Get MAC address if available
     mac_address = entry.data.get(CONF_MAC_ADDRESS)
+    _LOGGER.debug("MAC address from config entry: %s", mac_address)
 
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})

@@ -276,7 +276,10 @@ class PhilipsAirfryerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Add MAC address if available
                 if self._mac_address:
+                    _LOGGER.info("Saving MAC address to config: %s", self._mac_address)
                     data[CONF_MAC_ADDRESS] = self._mac_address
+                else:
+                    _LOGGER.debug("No MAC address to save")
 
                 # Store model-specific config in options
                 options = {

@@ -66,16 +66,29 @@ class AirfryerAPI:
                 "Content-Type": "application/json",
             }
 
-        try:
-            response = self.session.get(
-                f"https://{self.ip_address}{self.command_url}",
-                headers=headers,
-                verify=False,
-                timeout=10,
-            )
-        except requests.exceptions.RequestException as e:
-            _LOGGER.error("Failed to get status: %s", e)
-            return None
+        # Retry logic for slow or sleeping devices
+        max_retries = 3
+        timeout = 30  # Increased from 10 to 30 seconds for devices waking from sleep
+
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(
+                    f"https://{self.ip_address}{self.command_url}",
+                    headers=headers,
+                    verify=False,
+                    timeout=timeout,
+                )
+                break  # Success, exit retry loop
+            except requests.exceptions.ReadTimeout:
+                if attempt < max_retries - 1:
+                    _LOGGER.warning("Read timeout on attempt %d/%d, retrying...", attempt + 1, max_retries)
+                    continue
+                else:
+                    _LOGGER.error("Failed to get status after %d attempts: Read timeout", max_retries)
+                    return None
+            except requests.exceptions.RequestException as e:
+                _LOGGER.error("Failed to get status: %s", e)
+                return None
 
         if response.status_code == 401:
             # Need to authenticate
@@ -109,7 +122,7 @@ class AirfryerAPI:
                 headers=headers,
                 data=json.dumps(command),
                 verify=False,
-                timeout=10,
+                timeout=30,  # Increased from 10 to 30 seconds
             )
         except requests.exceptions.RequestException as e:
             _LOGGER.error("Failed to send command: %s", e)

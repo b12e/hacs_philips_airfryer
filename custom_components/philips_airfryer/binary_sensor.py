@@ -58,7 +58,10 @@ class AirfryerBinarySensorBase(CoordinatorEntity, BinarySensorEntity):
 
         # Add MAC address as a connection if available
         if self._mac_address:
+            _LOGGER.debug("Adding MAC address connection: %s", self._mac_address)
             device_info["connections"] = {(dr.CONNECTION_NETWORK_MAC, self._mac_address)}
+        else:
+            _LOGGER.debug("No MAC address available for device connection")
 
         return device_info
 
@@ -86,7 +89,7 @@ class AirfryerDrawerOpenBinarySensor(AirfryerBinarySensorBase):
 class AirfryerProbeUnpluggedBinarySensor(AirfryerBinarySensorBase):
     """Probe unplugged binary sensor for Philips Airfryer."""
 
-    _attr_name = "Probe Unplugged"
+    _attr_name = "Probe"
     _attr_device_class = BinarySensorDeviceClass.PLUG
     _attr_icon = "mdi:connection"
 
@@ -97,7 +100,8 @@ class AirfryerProbeUnpluggedBinarySensor(AirfryerBinarySensorBase):
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if the probe is unplugged."""
+        """Return true if the probe is plugged in."""
         if self.coordinator.data is None:
-            return True
-        return self.coordinator.data.get(SENSOR_PROBE_UNPLUGGED, True)
+            return False  # When no data, assume unplugged (off)
+        # Invert the unplugged state: if probe_unplugged is True, return False (not plugged in)
+        return not self.coordinator.data.get(SENSOR_PROBE_UNPLUGGED, True)
